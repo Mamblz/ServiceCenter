@@ -20,7 +20,6 @@ fun AppNavHost(navController: NavHostController) {
         composable(NavigationRoutes.SignUpScreen) { SignUpScreen(navController) }
         composable(NavigationRoutes.MainScreen) { MainScreen(navController = navController) }
 
-        // Добавляем экран для детализации сервиса
         composable(
             route = NavigationRoutes.ServiceDetail,
             arguments = listOf(navArgument("serviceId") { type = NavType.StringType })

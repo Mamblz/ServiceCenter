@@ -15,13 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-/**
- * Элемент выбора категории услуги сервисного центра
- *
- * @param category Название категории услуги
- * @param isSelected true, если категория выбрана, влияет на внешний вид
- * @param onClick Обработчик клика по категории
- */
+
 @Composable
 fun ServiceCategoryItem(
     category: String,

@@ -71,18 +71,13 @@ class ViewModelMain : ViewModel() {
             _isLoading.value = true
             _resultState.value = ResultState.Loading
             try {
-                // Получаем данные из Supabase
                 val response = supabase.postgrest
                     .from("serviceitem")
                     .select()
-                    .decodeList<ServiceItem>() // Здесь мы сразу декодируем ответ
-
-                // Логируем ответ
-                Log.d("SupabaseResponse", response.toString())  // Логируем, что пришло от Supabase
+                    .decodeList<ServiceItem>()
 
                 allServiceItems = response
                 _serviceItems.value = allServiceItems
-
                 _resultState.value = ResultState.Success("Услуги успешно загружены")
             } catch (e: Exception) {
                 _resultState.value = ResultState.Error(e.message ?: "Ошибка загрузки услуг")
@@ -93,12 +88,12 @@ class ViewModelMain : ViewModel() {
         }
     }
 
-
     fun loadCategories() {
         viewModelScope.launch {
             try {
                 _categories.value = supabase.postgrest.from("category").select().decodeList<Category>()
             } catch (e: Exception) {
+                Log.e("LoadCategoriesError", "Ошибка загрузки категорий: ${e.message}")
             }
         }
     }
@@ -106,6 +101,50 @@ class ViewModelMain : ViewModel() {
     suspend fun getServiceImageUrl(serviceName: String): String {
         return withContext(Dispatchers.IO) {
             supabase.storage.from("ServiceImages").publicUrl("$serviceName.png")
+        }
+    }
+
+    fun deleteServiceItem(serviceItem: ServiceItem) {
+        viewModelScope.launch {
+            try {
+                supabase.postgrest["serviceitem"]
+                    .delete {
+                        filter {
+                            eq("id", serviceItem.id)
+                        }
+                    }
+                loadServiceItems()
+            } catch (e: Exception) {
+                Log.e("DeleteError", "Ошибка при удалении услуги: ${e.message}")
+            }
+        }
+    }
+
+    fun addServiceItem(serviceItem: ServiceItem) {
+        viewModelScope.launch {
+            try {
+                supabase.postgrest["serviceitem"]
+                    .insert(serviceItem)
+                loadServiceItems()
+            } catch (e: Exception) {
+                Log.e("AddError", "Ошибка при добавлении услуги: ${e.message}")
+            }
+        }
+    }
+
+    fun updateServiceItem(serviceItem: ServiceItem) {
+        viewModelScope.launch {
+            try {
+                supabase.postgrest["serviceitem"]
+                    .update(serviceItem) {
+                        filter {
+                            eq("id", serviceItem.id)
+                        }
+                    }
+                loadServiceItems()
+            } catch (e: Exception) {
+                Log.e("UpdateError", "Ошибка при обновлении услуги: ${e.message}")
+            }
         }
     }
 }
