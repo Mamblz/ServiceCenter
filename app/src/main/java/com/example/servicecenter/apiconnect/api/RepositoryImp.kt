@@ -1,7 +1,8 @@
 package com.example.servicecenter.api
 
-import ServiceItem
+
 import com.example.servicecenter.Domain.Utils.SupabaseClient
+import com.example.servicecenter.apiconnect.model.ServiceItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow

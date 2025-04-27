@@ -1,86 +1,111 @@
 package com.example.servicecenter.Presentation.ViewModels
 
-import ServiceItem
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.*
+import com.example.servicecenter.Domain.Utils.ResultState
+import com.example.servicecenter.Domain.Utils.SupabaseClient.supabase
+import com.example.servicecenter.apiconnect.model.Category
+import com.example.servicecenter.apiconnect.model.ServiceItem
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ViewModelMain : ViewModel() {
 
+    private val _resultState = MutableStateFlow<ResultState>(ResultState.Initialized)
+    val resultState: StateFlow<ResultState> = _resultState.asStateFlow()
+
     private val _serviceItems = MutableStateFlow<List<ServiceItem>>(emptyList())
-    val serviceItems: StateFlow<List<ServiceItem>> = _serviceItems.asStateFlow()
+    private var allServiceItems: List<ServiceItem> = emptyList()
+    val serviceItems: StateFlow<List<ServiceItem>> get() = _serviceItems.asStateFlow()
 
     val searchQuery = MutableStateFlow("")
     val selectedCategory = MutableStateFlow<String?>(null)
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading
-
-    private val _logs = MutableStateFlow("")
-    val logs: StateFlow<String> = _logs
-
     val filteredItems: StateFlow<List<ServiceItem>> = combine(
-        _serviceItems, searchQuery, selectedCategory
-    ) { items, query, category ->
-        items.filter { service ->
-            service.name.contains(query, ignoreCase = true) &&
-                    (category == null || service.category == category)
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        _serviceItems,
+        searchQuery,
+        selectedCategory
+    ) { serviceItems, query, category ->
+        filterList(serviceItems, query, category)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    fun logMessage(message: String) {
-        _logs.value = _logs.value + message + "\n"
+    private val _categories = MutableStateFlow<List<Category>>(emptyList())
+    val categories: StateFlow<List<Category>> get() = _categories.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> get() = _isLoading.asStateFlow()
+
+    init {
+        loadServiceItems()
+        loadCategories()
     }
 
-    fun loadServiceItems() {
-        _isLoading.value = true
-        logMessage("Загрузка данных из локального хранилища...")
+    private fun filterList(serviceItems: List<ServiceItem>, query: String, category: String?): List<ServiceItem> {
+        return serviceItems.filter { service ->
+            val matchesQuery = query.isEmpty() || service.name.contains(query, ignoreCase = true) || service.description?.contains(query, ignoreCase = true) == true
+            val matchesCategory = category == null || service.categoryId.toString() == category
+            matchesQuery && matchesCategory
+        }
+    }
 
-        val result = listOf(
-            ServiceItem(
-                id = "123",
-                name = "Ремонт телефонов",
-                description = "Ремонт и диагностика мобильных устройств всех марок.",
-                price = 1500.0,
-                category = "Телефоны",
-                imageUrl = "https://avatars.mds.yandex.net/get-altay/6314780/2a000001820c7ba4f8a3db870174432fe454/XXXL"
-            ),
-            ServiceItem(
-                id = "124",
-                name = "Настройка компьютеров",
-                description = "Установка операционной системы и настройка ПО.",
-                price = 2000.0,
-                category = "Компьютеры",
-                imageUrl = "https://avatars.mds.yandex.net/get-altay/2424821/2a00000176b3abd1b932f81941f58fb28915/orig"
-            ),
-            ServiceItem(
-                id = "125",
-                name = "Чистка ноутбуков",
-                description = "Чистка от пыли и замена термопасты для продления срока службы.",
-                price = 1000.0,
-                category = "Ноутбуки",
-                imageUrl = "https://avatars.mds.yandex.net/get-altay/6057477/2a0000018176773f8cb2be06b76dc885d92e/XXXL"
-            ),
-            ServiceItem(
-                id = "126",
-                name = "Ремонт принтеров",
-                description = "Ремонт лазерных и струйных принтеров, заправка картриджей.",
-                price = 800.0,
-                category = "Принтеры",
-                imageUrl = "https://avatars.mds.yandex.net/get-altay/6200226/2a00000183413b2865c4e13f97d891f4aeb4/XXL_height"
-            )
-        )
-
-        _serviceItems.value = result
-        _isLoading.value = false
-        logMessage("Загружено ${result.size} услуг")
+    fun updateSearchQuery(query: String) {
+        searchQuery.value = query
     }
 
     fun updateCategory(category: String?) {
         selectedCategory.value = category
     }
 
-    fun updateSearchQuery(query: String) {
-        searchQuery.value = query
+    fun loadServiceItems() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _resultState.value = ResultState.Loading
+            try {
+                // Получаем данные из Supabase
+                val response = supabase.postgrest
+                    .from("serviceitem")
+                    .select()
+                    .decodeList<ServiceItem>() // Здесь мы сразу декодируем ответ
+
+                // Логируем ответ
+                Log.d("SupabaseResponse", response.toString())  // Логируем, что пришло от Supabase
+
+                allServiceItems = response
+                _serviceItems.value = allServiceItems
+
+                _resultState.value = ResultState.Success("Услуги успешно загружены")
+            } catch (e: Exception) {
+                _resultState.value = ResultState.Error(e.message ?: "Ошибка загрузки услуг")
+                Log.e("LoadServiceItemsError", "Ошибка загрузки услуг: ${e.message}")
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    fun loadCategories() {
+        viewModelScope.launch {
+            try {
+                _categories.value = supabase.postgrest.from("category").select().decodeList<Category>()
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    suspend fun getServiceImageUrl(serviceName: String): String {
+        return withContext(Dispatchers.IO) {
+            supabase.storage.from("ServiceImages").publicUrl("$serviceName.png")
+        }
     }
 }

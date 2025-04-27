@@ -1,6 +1,6 @@
 package com.example.servicecenter.api
 
-import ServiceItem
+import com.example.servicecenter.apiconnect.model.ServiceItem
 import kotlinx.coroutines.flow.Flow
 
 interface ServiceRepository {

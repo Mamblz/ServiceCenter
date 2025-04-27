@@ -1,6 +1,6 @@
 package com.example.servicecenter.apiconnect.api
 
-import ServiceItem
+import com.example.servicecenter.apiconnect.model.ServiceItem
 import retrofit2.http.GET
 import retrofit2.http.Query
 

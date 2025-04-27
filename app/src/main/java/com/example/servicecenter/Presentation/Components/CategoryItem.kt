@@ -3,18 +3,16 @@ package com.example.servicecenter.Presentation.Components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 /**
@@ -28,30 +26,29 @@ import androidx.compose.ui.unit.dp
 fun ServiceCategoryItem(
     category: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    primaryColor: Color
 ) {
+    val backgroundColor = if (isSelected) primaryColor.copy(alpha = 0.2f) else Color.Transparent
+    val textColor = if (isSelected) primaryColor else Color(0xFF666666)
+
     Box(
         modifier = Modifier
-            .padding(8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .background(backgroundColor)
             .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) Color(0xFF48B2E7) else Color.Transparent,
-                shape = RoundedCornerShape(15.dp)
+                width = 1.dp,
+                color = if (isSelected) primaryColor else Color.LightGray,
+                shape = RoundedCornerShape(12.dp)
             )
-            .clickable(
-                onClick = onClick,
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            )
-            .background(Color.White, shape = RoundedCornerShape(15.dp))
-            .padding(10.dp)
-            .width(150.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = category,
-            color = Color.Black,
-            textAlign = TextAlign.Center
+            style = MaterialTheme.typography.labelLarge,
+            color = textColor
         )
     }
 }

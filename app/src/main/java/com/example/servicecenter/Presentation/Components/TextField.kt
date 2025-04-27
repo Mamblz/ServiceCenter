@@ -1,20 +1,18 @@
 package com.example.app.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 
 
 @Composable
@@ -22,28 +20,30 @@ fun CustomTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
-    isPassword: Boolean = false,
-    isError: Boolean = false,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+    modifier: Modifier = Modifier,
+    isPassword: Boolean = false
 ) {
     TextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        isError = isError,
-        keyboardOptions = keyboardOptions,
-        modifier = Modifier
+        label = { Text(label, color = Color(0xFF666666)) },
+        modifier = modifier
             .fillMaxWidth()
-            .padding(12.dp)
-            .background(Color.White.copy(alpha = 0.1f), shape = RoundedCornerShape(16.dp))
+            .background(Color.White, RoundedCornerShape(12.dp))
             .border(
                 width = 1.dp,
-                color = if (isError) Color.Red else Color.Black,
-                shape = RoundedCornerShape(16.dp)
+                color = Color(0xFFDDDDDD),
+                shape = RoundedCornerShape(12.dp)
             ),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent
+        ),
         singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = Color.Black)
+        shape = RoundedCornerShape(12.dp),
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None
     )
 }
 

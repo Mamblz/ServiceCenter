@@ -1,127 +1,161 @@
 package com.example.servicecenter.Presentation.Screens.MainScreen
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.app.presentation.screens.CustomTextField
+import com.example.servicecenter.Domain.Utils.ResultState
 import com.example.servicecenter.Presentation.Components.ServiceCategoryItem
 import com.example.servicecenter.Presentation.Components.ServiceItemCard
-import com.example.servicecenter.Presentation.Components.TextFieldSearch
 import com.example.servicecenter.Presentation.ViewModels.ViewModelMain
-import com.example.servicecenter.Domain.Utils.ResultState
-import kotlinx.coroutines.runBlocking
 
-/**
- * Главный экран приложения сервисного центра.
- * Отображает:
- * - строку поиска,
- * - категории услуг,
- * - список фильтрованных услуг.
- */
+
 @Composable
 fun MainScreen(
     navController: NavHostController,
     viewModel: ViewModelMain = viewModel()
 ) {
-    val searchQuery = remember { mutableStateOf("") }
-    val selectedCategory = remember { mutableIntStateOf(-1) }
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedCategory by viewModel.selectedCategory.collectAsState()
     val resultState by viewModel.resultState.collectAsState()
-    val categories by viewModel.categories.collectAsState()
-    val serviceItems by viewModel.filteredItems.collectAsState()
+    val filteredItems by viewModel.filteredItems.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
-    Column(
+    val categories = listOf("Все") + filteredItems.map { it.categoryId.toString() }.distinct()
+
+    // Новые цвета для стиля
+    val primaryColor = Color(0xFF4A6FA5)  // Приятный синий
+    val secondaryColor = Color(0xFF166088)
+    val backgroundColor = Color(0xFFF8F9FA)  // Очень светлый серый
+    val cardColor = Color.White
+    val textColor = Color(0xFF333333)
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(backgroundColor),
+        contentAlignment = Alignment.Center
     ) {
-        TextFieldSearch(
-            value = searchQuery.value,
-            onvaluechange = { newText ->
-                searchQuery.value = newText
-                viewModel.filterList(newText, selectedCategory.intValue)
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // ⚙️ Обработка состояний
-        when (val state = resultState) {
-            is ResultState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            is ResultState.Error -> {
-                Text(
-                    text = state.message,
-                    modifier = Modifier.padding(16.dp)
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .padding(12.dp),
+            colors = CardDefaults.cardColors(containerColor = cardColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)  // Добавили тень
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CustomTextField(
+                    value = searchQuery,
+                    onValueChange = { newText -> viewModel.updateSearchQuery(newText) },
+                    label = "Поиск услуг",
+                    modifier = Modifier.fillMaxWidth()
                 )
-            }
 
-            is ResultState.Success -> {
                 LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp)
+                    contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
                     items(categories) { category ->
-                        CategoryItem(
-                            category = category.name,
-                            isSelected = selectedCategory.intValue == category.id,
+                        ServiceCategoryItem(
+                            category = category,
+                            isSelected = selectedCategory == category || (selectedCategory == null && category == "Все"),
                             onClick = {
-                                selectedCategory.intValue = category.id
-                                viewModel.filterList(
-                                    searchQuery.value,
-                                    selectedCategory.intValue
-                                )
-                            }
+                                if (category == "Все") {
+                                    viewModel.updateCategory(null)
+                                } else {
+                                    viewModel.updateCategory(category)
+                                }
+                            },
+                            primaryColor = primaryColor
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // 🛠 Список услуг
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    items(serviceItems) { service ->
-                        ServiceItemCard(serviceItem = service) {
-                            runBlocking {
-                                navController.navigate("ServiceDetail/${service.id}")
+                when (val state = resultState) {
+                    is ResultState.Success -> {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(filteredItems) { serviceItem ->
+                                ServiceItemCard(
+                                    serviceItem = serviceItem,
+                                )
                             }
                         }
                     }
+                    is ResultState.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(48.dp),
+                                color = primaryColor,
+                                strokeWidth = 4.dp
+                            )
+                        }
+                    }
+                    is ResultState.Error -> {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Ошибка загрузки данных",
+                                color = Color(0xFFD32F2F),
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+                    is ResultState.Initialized -> {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Загрузка данных...",
+                                color = textColor,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
                 }
-            }
-
-            is ResultState.Initialized -> {
-                Text(
-                    text = "Подготовка данных...",
-                    modifier = Modifier.padding(16.dp)
-                )
             }
         }
     }
@@ -130,3 +164,4 @@ fun MainScreen(
         viewModel.loadServiceItems()
     }
 }
+
